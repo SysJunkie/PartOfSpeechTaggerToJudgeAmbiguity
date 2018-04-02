@@ -1,0 +1,80 @@
+## All commands are generated on a mac system
+
+# Remove capitalization from DA.txt and store it in DA_temp.txt
+tr '[:upper:]' '[:lower:]' <DA.txt >DA_temp.txt
+
+# Convert "n't" to " not"
+sed "s/n't/ not/g" DA_temp.txt >DA.txt
+
+# Replace - with space
+sed "s/-/ /g" <DA.txt >DA_temp.txt
+
+# Convert "'ve" to " have"
+sed "s/'ve/ have/g" <DA_temp.txt >DA.txt
+
+# Convert "i'm" to "i am"
+sed "s/'m/ am/g" <DA.txt >DA_temp.txt
+
+# Convert "'em" to "them"
+sed "s/'em/them/g" <DA_temp.txt >DA.txt
+
+# Convert "let's" to "let us"
+sed "s/let's/let us/g" <DA.txt >DA_temp.txt
+
+# Convert "'ll" to " will"
+sed "s/'ll/ will/g" <DA_temp.txt >DA.txt
+
+# Convert "'s been" to " has been"
+sed "s/'s been/ has been/g" <DA.txt >DA_temp.txt
+
+# Convert 's specific to it's/that's/what's to it is, that is, what is respectively
+sed "s/it's/it is/g;s/that's/that is/g;s/what's/what is/g" <DA_temp.txt >DA.txt
+
+# Convert all other "'s" to " s"
+sed "s/'s/ s/g" <DA.txt >DA_temp.txt
+
+# Delete , and " after setting boundary for parenthetical sentence
+sed "s/,\"/ @/g;s/, \"/ @ /g" <DA_temp.txt >DA.txt
+
+# Delete all double quotes (")
+sed "s/\"//g" <DA.txt >DA_temp.txt
+
+# Delete all remaining ,
+sed "s/,//g" <DA_temp.txt >DA.txt
+
+# Normalise some specific abnormalities namely: i@ to i?, m@ch@ to mache, gr@ce to grace, % to a percentage 
+sed "s/i@/i?/g;s/m@ch@/mache/g;s/gr@ce/grace/g;s/%/a percentage/g" <DA.txt >DA_temp.txt
+
+# Convert one or more occurance of all other punctuations to sentence boundary @, add @ at the begining of the first sentence and remove all extra spaces
+sed -E "s/[^a-z ]+/ @ /g;1s/^/@ /;s/  */ /g" <DA_temp.txt >DA.txt
+
+######
+
+# Find all the Unigram frequencies and store it in unigrams.txt
+tr -sc -s "a-z@" "\n" <DA.txt |sort|uniq -c |sort -n -r |sed "s/^ *//g" >unigrams.txt
+
+# Find all the Bigram frequencies and store it in bigrams.txt
+egrep -o "[a-z@]+" <DA.txt > unig1.txt
+tail -n+2 <unig1.txt > unig2.txt
+paste unig1.txt unig2.txt > pairs.txt
+sort < pairs.txt | uniq -c | sort -n -r |sed $'s/^ *//g;s/\t/ /g' > bigrams.txt
+
+
+# Create the unigram model prolog readable and store it in unigram_snehameh.pl
+sed "s/\(.*\)/unigram\(\1/g;s/ /,/g;s/\(.*\)/\1\)./g" <unigrams.txt >unigram_snehameh.pl
+
+
+# Create the bigram model prolog readable and store it in bigram_snehameh.pl
+sed "s/\(.*\)/bigram\(\1/g;s/ /,/g;s/\(.*\)/\1\)./g;$ d" <bigrams.txt >bigram_snehameh.pl
+
+# Calculate the total number of types of word |V| in the normalised text file (or number of lines in the unigram model)
+# This comes out as 14794 and this has been hardcoded in the lm prolog code
+wc -l unigram_snehameh.pl
+
+# Remove temp files (optional)
+rm DA_temp.txt
+rm unig1.txt
+rm unig2.txt
+rm pairs.txt
+rm bigrams.txt
+rm unigrams.txt

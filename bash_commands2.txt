@@ -1,0 +1,108 @@
+##### Normalization
+
+# Convert "n't" to " not"
+sed "s/n't/ not/g" DA.txt >DA_temp.txt
+
+# Replace - with space
+sed "s/-/ /g" <DA_temp.txt >DA.txt
+
+# Convert "'ve" to " have"
+sed "s/'ve/ have/g" <DA.txt >DA_temp.txt
+
+# Convert "i'm" to "i am"
+sed "s/'m/ am/g" <DA_temp.txt >DA.txt
+
+# Convert "'em" to "them"
+sed "s/'em/them/g" <DA.txt >DA_temp.txt
+
+# Convert "let's" to "let us"
+sed "s/let's/let us/g" <DA_temp.txt >DA.txt
+
+# Convert "Let's" to "Let us"
+sed "s/Let's/Let us/g" <DA.txt >DA_temp.txt
+
+# Convert "'ll" to " will"
+sed "s/'ll/ will/g" <DA_temp.txt >DA.txt
+
+# Convert "'s been" to " has been"
+sed "s/'s been/ has been/g" <DA.txt >DA_temp.txt
+
+# Convert 's specific to it's/that's/what's to it is, that is, what is respectively
+sed "s/it's/it is/g;s/that's/that is/g;s/what's/what is/g" <DA_temp.txt >DA.txt
+
+# Convert 's specific to it's/that's/what's to it is, that is, what is respectively
+sed "s/It's/It is/g;s/That's/That is/g;s/What's/What is/g" <DA.txt >DA_temp.txt
+
+# Convert all other "'s" to " s"
+sed "s/'s/ s/g" <DA_temp.txt >DA.txt
+
+# Delete , and " after setting boundary for parenthetical sentence
+sed "s/,\"/ @/g;s/, \"/ @ /g" <DA.txt >DA_temp.txt
+
+# Delete all double quotes (")
+sed "s/\"//g" <DA_temp.txt >DA.txt
+
+# Delete all remaining ,
+sed "s/,//g" <DA.txt >DA_temp.txt
+
+# Normalise some specific abnormalities namely: i@ to i?, m@ch@ to mache, gr@ce to grace, % to a percentage 
+sed "s/i@/i?/g;s/m@ch@/mache/g;s/gr@ce/grace/g;s/%/a percentage/g" <DA_temp.txt >DA.txt
+
+# Convert one or more occurance of all other punctuations to sentence boundary @, add @ at the begining of the first sentence and remove all extra spaces
+sed -E "s/[^a-zA-Z ]+/ @ /g;1s/^/@ /;s/  */ /g" <DA.txt >DA_temp.txt
+
+# rename and move DA_temp.txt to DA.txt
+mv DA_temp.txt DA.txt
+
+
+######## Tagging DA.txt into TDA.txt
+
+java -cp "*" edu.stanford.nlp.tagger.maxent.MaxentTagger -model models/english-left3words-distsim.tagger -textFile DA.txt -tokenize true -outputFormat tsv -outputFile TDA.txt
+
+
+######### Extracting the HMM
+
+# Replace and tagging of @ with @
+sed -E "s/@.*/@ @/g" <TDA.txt >TDA1.txt
+
+# Extract counts of unique pairs of words and tags 
+cat TDA1.txt | sort | uniq -c >out.txt 
+
+# Extract the tag (last word) and count its occurance
+awk '{print $NF}' TDA1.txt | sort | uniq -c >out1.txt
+
+# Add single quotes to words and tags
+sed $'s/^ *//g;s/\t/ /g;s/[^0-9 ][^ ]*/\'&\'/g' <out.txt >out2.txt
+sed $'s/^ *//g;s/@ @/@/g;s/\t/ /g;s/[^0-9 ][^ ]*/\'&\'/g' <out1.txt >out3.txt
+
+# Convert all the counts of word-tag pair and tags to prolog readable format
+sed $"s/\(.*\)/count1\(\1/g;s/ /,/g;s/\(.*\)/\1\)./g;1 d" <out2.txt >count1.pl
+sed $"s/\(.*\)/count2\(\1/g;s/ /,/g;s/\(.*\)/\1\)./g;1 d" <out3.txt >count2.pl
+
+
+# Extract all tags (last word) and create pairs of tags (t_i-1, t_i)
+awk '{print $NF}' <TDA1.txt > out4.txt
+tail -n+2 <out4.txt > out5.txt
+paste out4.txt out5.txt > pairs.txt
+
+# Find the count of each pair of tags
+sort < pairs.txt | uniq -c | sort -n -r |sed $'s/^ *//g;s/\t/ /g' > out6.txt
+
+# Add single quotes to the tags
+sed $'s/^ *//g;s/\t/ /g;s/[^0-9 ][^ ]*/\'&\'/g;$ d' <out6.txt >out7.txt
+
+# Convert all the counts of tag-tag pairs to prolog readable format
+sed $"s/\(.*\)/count3\(\1/g;s/ /,/g;s/\(.*\)/\1\)./g;$ d" <out7.txt >count3.pl
+
+
+# Remove all extra files created in process
+rm out.txt
+rm out1.txt
+rm out2.txt
+rm out3.txt
+rm out4.txt
+rm out5.txt
+rm out6.txt
+rm out7.txt
+rm pairs.txt
+rm TDA1.txt
